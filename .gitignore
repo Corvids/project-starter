@@ -1,0 +1,16 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# dependencies and build output
+node_modules/
+.next/
+out/
+app/src/generated/
+app/next-env.d.ts
+*.tsbuildinfo
+
+# logs, OS files
+npm-debug.log*
+.DS_Store

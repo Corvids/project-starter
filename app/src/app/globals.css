@@ -1,0 +1,65 @@
+:root {
+  color-scheme: light;
+  color: #1f2328;
+  background: #ffffff;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+main {
+  max-width: 40rem;
+  margin: 3rem auto;
+  padding: 0 1rem;
+}
+
+.muted {
+  opacity: 0.7;
+}
+
+form {
+  display: flex;
+  gap: 0.5rem;
+}
+
+input {
+  flex: 1;
+  padding: 0.5rem;
+}
+
+button {
+  padding: 0.5rem 1rem;
+}
+
+ul {
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #d8dee4;
+}
+
+time {
+  white-space: nowrap;
+  opacity: 0.6;
+  font-size: 0.85rem;
+}
+
+.badge {
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.badge-redis {
+  background: #fde2e1;
+  color: #a4161a;
+}
+
+.badge-postgres {
+  background: #dbe9fb;
+  color: #1d4e89;
+}
