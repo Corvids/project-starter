@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { redis } from "@/lib/redis";
 
-const CACHE_KEY = "notes:recent";
+const CACHE_VERSION_KEY = "notes:recent:version";
 const CACHE_TTL_SECONDS = 60;
 const RECENT_LIMIT = 20;
 export const MAX_NOTE_LENGTH = 280;
@@ -10,9 +10,12 @@ export type NoteView = { id: number; body: string; createdAt: string };
 export type CacheSource = "redis" | "postgres";
 
 export async function getRecentNotes(): Promise<{ notes: NoteView[]; source: CacheSource }> {
-  const cached = await redis().get(CACHE_KEY);
-  if (cached) {
-    return { notes: JSON.parse(cached) as NoteView[], source: "redis" };
+  const version = await readCacheVersion();
+  if (version !== null) {
+    const cached = await readCachedNotes(version);
+    if (cached) {
+      return { notes: cached, source: "redis" };
+    }
   }
 
   const rows = await db().note.findMany({
@@ -24,7 +27,9 @@ export async function getRecentNotes(): Promise<{ notes: NoteView[]; source: Cac
     body: row.body,
     createdAt: row.createdAt.toISOString(),
   }));
-  await redis().set(CACHE_KEY, JSON.stringify(notes), "EX", CACHE_TTL_SECONDS);
+  if (version !== null) {
+    await writeCachedNotes(version, notes);
+  }
   return { notes, source: "postgres" };
 }
 
@@ -36,6 +41,70 @@ export function parseNoteBody(input: unknown): string | null {
 
 export async function createNote(body: string): Promise<NoteView> {
   const row = await db().note.create({ data: { body } });
-  await redis().del(CACHE_KEY);
+  await bumpCacheVersion();
   return { id: row.id, body: row.body, createdAt: row.createdAt.toISOString() };
+}
+
+function cacheKey(version: string): string {
+  return `notes:recent:${version}`;
+}
+
+async function readCacheVersion(): Promise<string | null> {
+  try {
+    return (await redis().get(CACHE_VERSION_KEY)) ?? "0";
+  } catch (error) {
+    logCacheError(error);
+    return null;
+  }
+}
+
+async function readCachedNotes(version: string): Promise<NoteView[] | null> {
+  try {
+    const payload = await redis().get(cacheKey(version));
+    return payload === null ? null : parseCachedNotes(payload);
+  } catch (error) {
+    logCacheError(error);
+    return null;
+  }
+}
+
+async function writeCachedNotes(version: string, notes: NoteView[]): Promise<void> {
+  try {
+    await redis().set(cacheKey(version), JSON.stringify(notes), "EX", CACHE_TTL_SECONDS);
+  } catch (error) {
+    logCacheError(error);
+  }
+}
+
+async function bumpCacheVersion(): Promise<void> {
+  try {
+    await redis().incr(CACHE_VERSION_KEY);
+  } catch (error) {
+    logCacheError(error);
+  }
+}
+
+function parseCachedNotes(payload: string): NoteView[] | null {
+  try {
+    const parsed: unknown = JSON.parse(payload);
+    return Array.isArray(parsed) && parsed.every(isNoteView) ? parsed : null;
+  } catch (error) {
+    logCacheError(error);
+    return null;
+  }
+}
+
+function isNoteView(value: unknown): value is NoteView {
+  if (!value || typeof value !== "object") return false;
+  const note = value as Record<string, unknown>;
+  return (
+    Number.isSafeInteger(note.id) &&
+    typeof note.body === "string" &&
+    typeof note.createdAt === "string"
+  );
+}
+
+function logCacheError(error: unknown): void {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`[cache] ${message}`);
 }
