@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG NODE_IMAGE=node:22.23.4-alpine3.24
+ARG NODE_IMAGE=node:26.13.1-alpine3.24
 
 # ---- base: shared settings, owned by the non-root node user ----
 FROM ${NODE_IMAGE} AS base

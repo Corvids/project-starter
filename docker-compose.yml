@@ -5,15 +5,16 @@ x-redis-url: &redis-url "redis://:${REDIS_PASSWORD:?set REDIS_PASSWORD in .env}@
 
 services:
   postgres:
-    image: postgres:16.15-alpine
+    image: postgres:19.0-alpine
     restart: unless-stopped
     mem_limit: 256m
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-db_user}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-metrics_store}
+    # Postgres 18+ keeps data in /var/lib/postgresql/<major>/docker.
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql
     networks:
       - backend_network
     healthcheck:
@@ -24,7 +25,7 @@ services:
       start_period: 10s
 
   redis:
-    image: redis:7.4.12-alpine
+    image: redis:8.12.0-alpine
     restart: unless-stopped
     mem_limit: 64m
     environment:
@@ -110,13 +111,12 @@ services:
 
   prometheus:
     profiles: [observability]
-    image: prom/prometheus:v2.51.0
+    image: prom/prometheus:v3.16.0
     restart: unless-stopped
     mem_limit: 256m
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.time=7d
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - promdata:/prometheus
@@ -132,7 +132,7 @@ services:
 
   grafana:
     profiles: [observability]
-    image: grafana/grafana:10.4.0
+    image: grafana/grafana:13.3.2
     restart: unless-stopped
     mem_limit: 256m
     environment:
